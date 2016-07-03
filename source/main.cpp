@@ -198,29 +198,7 @@ int pnodes[20] =
 {
   1,0, 0,0,0,0,0,0
 };
-/*
-int petry_out[20][20] =
-{
-  { 1,0, 0,0,0,0,0,0 }, // крит секция
-  { 0,1, 0,0,0,0,0,0 },
-  { 1,0, 0,0,0,0,0,0 }, // Завершающая часть критической секции
-  { 0,0, 1,0,0,0,0,0 }, // Окончание
 
-  { 1,0, 0,0,0,0,0,0 }, // семафор для сети
-  { 0,0, 0,1,0,0,0,0 },
-};
-
-int petry_in[20][20] =
-{
-  { 0,1, 0,0,0,0,0,0 }, // крит секция
-  { 1,0, 0,0,0,0,0,0 },
-  { 1,0, 1,0,0,0,0,0 }, // (забираем и тут-же кладем обратно)
-  { 0,0, 1,0,0,0,0,0 }, // Окончание
-
-  { 0,0, 0,1,0,0,0,0 }, // семафор для сети
-  { 1,0, 1,0,0,0,0,0 },
-};
-*/
 int petry_out[20][20] =
 {
   { 1,0, 0,0,0,0,0,0 }, // крит секция
@@ -228,8 +206,8 @@ int petry_out[20][20] =
   { 1,0, 1,0,0,0,0,0 }, // Завершающая часть критической секции
   { 0,0, 0,1,0,0,0,0 }, // Окончание
 
-  { 1,0, 0,0,0,0,0,0 }, // семафор для сети
-  { 0,0, 0,1,0,0,0,0 },
+  //{ 1,0, 0,0,0,0,0,0 }, // семафор для сети
+  //{ 0,0, 0,1,0,0,0,0 },
 };
 
 int petry_in[20][20] =
@@ -239,11 +217,11 @@ int petry_in[20][20] =
   { 1,0, 0,0,0,0,0,0 }, // (забираем и тут-же кладем обратно)
   { 0,0, 1,0,0,0,0,0 }, // Окончание
 
-  { 0,0, 0,1,0,0,0,0 }, // семафор для сети
-  { 1,0, 1,0,0,0,0,0 },
+  //{ 0,0, 0,1,0,0,0,0 }, // семафор для сети
+  //{ 1,0, 1,0,0,0,0,0 },
 };
 
-const int finish_move = 3;
+const int finish_move = 2;
 
 int p_lock_node, p_priv_nodes, p_finish_nodes, p_end_node;
 CRITICAL_SECTION crit_sect;
@@ -276,7 +254,7 @@ void move_petry( int t )
                 pnodes[i] += petry_out[t][i];
             }
             std::cout << "Thread is " << GetCurrentThreadId() << " Current move " << t << std::endl;
-            for( i = 0; (i < 5) & fl; i++ )
+            for( i = 0; (i < 15) & fl; i++ )
             {
                 std::cout << pnodes[i] << ' ';
             }
@@ -291,21 +269,24 @@ void move_petry( int t )
 
 void init_petry( int end_size )
 {
-    petry_out[2][finish_move] = end_size;
+    petry_in[2][finish_move] = end_size;
     pnodes[0] = m;
+    petry_out[2][0] = 0;
+    petry_out[2][2] = 0;
+    petry_in[3][2] = 0;
 
     for( int i = 0; i < n; i++ )
     {
         int t = i*2 + 3;
 
-        petry_out[ t   ][0] = 1;
-        petry_in [ t   ][3+i] = 1;
-        petry_out[ t+1 ][3+i] = 1;
-        petry_in [ t+1 ][0] = 1;
-        petry_in [ t+1 ][2] = 2;
+        petry_in [ t   ][0] = 1;
+        petry_out[ t   ][3+i] = 1;
+        petry_in [ t+1 ][3+i] = 1;
+        petry_out [ t+1 ][0] = 1;
+        petry_out [ t+1 ][2] = 1;
 
     }
-    /*
+
     std::cout << "petry in: " << std::endl;
     for (int i = 0; i < 20; i++)
     {
@@ -324,7 +305,7 @@ void init_petry( int end_size )
         }
         std::cout << std::endl;
     }
-    */
+
 }
 
 
@@ -340,7 +321,7 @@ DWORD __stdcall proc_petry( void *ptr )
         move_petry( 1 );
 
         i = get_last();
-        std::cout << " finished count is:" << i;
+        //std::cout << " finished count is:" << i;
 
         // Отдать фишку
         move_petry( 0 );
@@ -466,9 +447,10 @@ void pool_petry_thr( void *ptr )
 void thr_pool_petry()
 {
     clock_t st;
-    HANDLE h;
-    std::vector<HANDLE> *thr = new std::vector<HANDLE>();
+    HANDLE thr[100];
+    //std::vector<HANDLE> *thr = new std::vector<HANDLE>();
     DWORD i;
+    DWORD id[100];
 
     init_petry ( n );
 
@@ -476,7 +458,7 @@ void thr_pool_petry()
 
     for( i = 0; i < n; i++ )
     {
-        CreateThread( NULL, 0, (LPTHREAD_START_ROUTINE) pool_petry_thr, (void*) i, NULL, 0 );
+       thr[i] = CreateThread( NULL, 0, (LPTHREAD_START_ROUTINE) pool_petry_thr, (void*) i, NULL, &id[i] );
     }
 
     // Ждем, пока все завершится (поле time везде установится в 0 в конце)
@@ -488,6 +470,8 @@ void thr_pool_petry()
 
     // Сложить результаты измерений
     ShowRes();
+
+    close_thr(thr,id);
 } // */
 
 int _tmain(int argc, _TCHAR* argv[])
