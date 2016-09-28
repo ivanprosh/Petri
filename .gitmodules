@@ -1,0 +1,3 @@
+[submodule "Spravochnik_v3/Mod_Petri"]
+	path = Spravochnik_v3/Mod_Petri
+	url = https://github.com/ivanprosh/Mod_Petri.git

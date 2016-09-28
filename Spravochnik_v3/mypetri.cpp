@@ -1,51 +1,12 @@
-/* ------------------------------------------------------------------------- */
-/*  Данный файл является частью комплекта исходных текстов,                  */
-/*  иллюстрирующих материал следующего издания:                              */
-/*  Федотов И.Е.                                                             */
-/*  Модели параллельного программирования. - М.: СОЛОН-ПРЕСС, 2012. - 384 с. */
-/*  ISBN 978-5-91359-102-9                                                   */
-/*                                                                           */
-/*  Как и само издание, прилагаемые к нему исходные тексты предназначены     */
-/*  лишь для ознакомления с принципами высокоуровневого построения           */
-/*  параллельных программ, а также для проведения дальнейших экспериментов.  */
-/*  Использование этого кода в качестве основы для реальных программ         */
-/*  допустимо, однако требует доработок и может осуществляться лишь          */
-/*  на личный страх и риск разработчика.                                     */
-/*  Исходные тексты предоставляются "как есть", без каких бы то ни было      */
-/*  явных или неявных гарантий пригодности к практическому применению.       */
-/*                                                                           */
-/*  Copyright © 2008-2011 Федотов И.Е.                                       */
-/* ------------------------------------------------------------------------- */
-
-
-#include <windows.h>
-#include <QDebug>
-#include <QStack>
-#include "zpetri.hxx"
-#include "zpetri-env.hxx"
-//#include "../../common/synprintf.hxx"
-
-using namespace std;
-using namespace z;
-using namespace z::petri;
-
-// хранилище очередей
-struct queues_type
-{
-    QStack<int> Test;
-    queues_type(){
-        Test.push(1);
-        Test.push(2);
-        Test.push(3);
-    }
-};
+#include "mypetri.h"
 
 // длительные операции
+template<class T>
 class jobprepare_type: public threadenv_type::longjob_abstract_type
 {
 private:
     int id;
-    queues_type &m_queues;
+    T &m_queues;
     void run(void)
     {
         qDebug() << "prepare begin " << m_queues.Test.top();
@@ -54,12 +15,13 @@ private:
         qDebug() << "prepare end " << m_queues.Test.top();
     }
 public:
-    jobprepare_type(queues_type &queues,int curid): m_queues(queues), id(curid) {}
+    jobprepare_type(T &queues,int curid): m_queues(queues), id(curid) {}
 };
 
-
-int main(int argc, char *argv[])
+template<class T>
+void CreatePetri(int curMeth,int MaxCountThreads, T& data_query)
 {
+    /*
     //~ srand(unsigned(time(NULL)));
     QVector threads;
 
@@ -126,6 +88,6 @@ int main(int argc, char *argv[])
     // создание и запуск сети
     petrinet_type petrinet(content);
     petrinet.live(env);
+    */
 
-    return 0;
 }

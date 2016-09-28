@@ -9,15 +9,16 @@ CONFIG -= app_bundle
 TEMPLATE = app
 
 SOURCES += \
-    Source/main.cpp
+    main.cpp \
+    mypetri.cpp
 
 HEADERS += \
-    Source/stdafx.h \
-    Source/targetver.h \
     mythread.h \
-    Source/mythread.h \
     Mod_Petri/zpetri.hxx \
-    Mod_Petri/zpetri-env.hxx
+    Mod_Petri/zpetri-env.hxx \
+    stdafx.h \
+    targetver.h \
+    mypetri.h
 
 deployment.path = $$OUT_PWD/
 deployment.files += input.ini \
