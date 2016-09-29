@@ -1,15 +1,21 @@
 #include <QSettings>
-#include <QDebug>
 #include <QCoreApplication>
 #include <QSemaphore>
 #include <QFile>
 #include <QTime>
 #include <QStringList>
+#include <QQueue>
+
 #include "mythread.h"
+#include "mypetri.h"
 #include "Mod_Petri/zpetri.hxx"
 #include "Mod_Petri/zpetri-env.hxx"
+#include "note.h"
 
 using namespace std;
+
+//общая очередь записей
+QQueue<Note> queue;
 
 class Error
 {
@@ -19,48 +25,24 @@ public:
 };
 
 QStringList AvailFamil;
+QString Goal;
 
-//функция перевода int в char
-char Ch(int s) { return s+'a'; }
-
-class Note{
-private:
-    const int id;
-public:
-    static int count;
-    //Data
-    QString family,address;
-    int ph_number;
-
-    Note():id(++count){
-        qDebug() << "New id is " << id;
-
-        //набор данных случайным образом
-        family = QString(Ch(qrand()%26)) + QString(Ch(qrand()%26)) + "nova";
-        address = "St.Lenina " +  QString::number(qrand()%100) + " kv." + QString::number(qrand()%100);
-        ph_number = 10000*(qrand()%9)+1000*(qrand()%9)+100*(qrand()%9)+10*(qrand()%9)+qrand()%9;
-        //добавим в перечень фамилий
-        AvailFamil << family;
-        qDebug() << family << "," << address << "," << ph_number;
-    }
-};
 int Note::count = 0;
 
 QSemaphore semaphore_sync;
 //указатель на ключевую функцию для потоков
-void (*algorithm)(int i);
+void (*algorithm)(int i,Note curNote);
 //Строковый поток для записи в файл
 QTextStream* out;
 QFile* outputFile;
 //Глобальные настроечные параметры
-int N(0),M(0),PT(0);
-//способ планирования
-QString PA;
-/*
-//общее кол-во деталей
-int count = 0;
+int N(0),M(0),PT(0),PA(1);
+
 //текущее кол-во потоков в работе
 int curThreadCount = 0;
+//контейнер для хранения массива потоков
+QVector<QThread*> vecThreads;
+/*
 //для блокировки одновременного доступа к крит. секции
 QMutex PetriJump;
 int countThreadOnCycle = 0;
@@ -176,7 +158,7 @@ void rfile(const QString& name)
     const QStringList childKeys = settings.childKeys();
     if(childKeys.empty()) throw Error("Something wrong with input file");
 
-    PA = settings.value("PA").toString();
+    PA = settings.value("PA").toInt();
     N = settings.value("N").toInt();
     M = settings.value("M").toInt();
     PT = settings.value("PT").toInt();
@@ -222,6 +204,37 @@ void print(QTextStream* out)
     //syncmutex.unlock();
 }
 */
+//функция основной работы для потока
+void work(int thr_id,Note curNote)
+{
+    qDebug() << "Thread " << thr_id << " in work";
+    if(curNote.family==Goal) {
+        *out << "Family: "<< curNote.family <<" Number: " << curNote.ph_number <<" Address: " << curNote.address;
+    }
+    QThread::currentThread()->msleep(PT);
+}
+
+void ThreadArrInit(){
+
+    //Создаем потоки
+    for(int i=0;i<M;i++)
+    {
+      MyThread *thr = new MyThread(algorithm,i);
+      thr->start();
+      vecThreads.push_back(thr);
+    }
+
+    //Семафор для синхронизации
+    semaphore_sync.release(vecThreads.size());
+
+    //даем возможность поработать другим потокам
+    while((curThreadCount==0) || semaphore_sync.available()!=vecThreads.size()){
+        QThread::currentThread()->msleep(0);
+    }
+    //сюда попадаем, когда работа закончена
+    return;
+}
+
 int main(int argc, char** argv)
 {
   QCoreApplication  app(argc, argv);
@@ -235,23 +248,35 @@ int main(int argc, char** argv)
 
   try{
         rfile("input.ini");
-
+        //функция основной работы для потока
+        algorithm = work;
         //инициализация генератора случ. чисел
         QTime midnight(0,0,0);
         qsrand(midnight.secsTo(QTime::currentTime()));
+        //генерация очереди данных
+        for(int i=0;i<N;i++){
+            Note newNote;
+            newNote.filling();
+//            queue.enqueue(newNote);
+        }
+        //выбор случайной целевой фамилии из доступных
+        Goal = AvailFamil.at(qrand()%AvailFamil.size());
+        qDebug() << "Gaol Family: " << Goal;
 
-        Note n1,n2,n3;
-        /*
-        //Создаем потоки
-        for(int i=0;i<vecDetails.size();i++)
-        {
-          MyThread *thr = new MyThread(algorithm,vecDetails.at(i)->id);
-          thr->start();
-          vecThreads.push_back(thr);
+        //таймер для оценки быстродействия
+        QTime runtime;
+        runtime.start();
+
+        switch(PA){
+            case ThreadArr:
+               ThreadArrInit();
+            break;
         }
 
-  //Семафор для синхронизации
-  semaphore_sync.release(vecDetails.size());
+        *out << "Time elapsed: " << runtime.elapsed();
+        qDebug() << "Time elapsed: " << runtime.elapsed();
+        /*
+
 
   while (::count>0)
   {

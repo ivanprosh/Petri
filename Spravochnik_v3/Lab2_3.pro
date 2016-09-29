@@ -18,7 +18,8 @@ HEADERS += \
     Mod_Petri/zpetri-env.hxx \
     stdafx.h \
     targetver.h \
-    mypetri.h
+    mypetri.h \
+    note.h
 
 deployment.path = $$OUT_PWD/
 deployment.files += input.ini \
