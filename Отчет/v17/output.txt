@@ -1,0 +1,2 @@
+Linear time: 194
+Multithreaded time: 74Total weight of chemodan is 511

@@ -9,8 +9,7 @@ CONFIG -= app_bundle
 TEMPLATE = app
 
 SOURCES += \
-    main.cpp \
-    mypetri.cpp
+    main.cpp
 
 HEADERS += \
     mythread.h \

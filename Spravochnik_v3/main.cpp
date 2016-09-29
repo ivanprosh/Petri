@@ -17,6 +17,7 @@ using namespace std;
 //общая очередь записей
 QQueue<Note> queue;
 
+
 class Error
 {
 public:
@@ -209,17 +210,29 @@ void work(int thr_id,Note curNote)
 {
     qDebug() << "Thread " << thr_id << " in work";
     if(curNote.family==Goal) {
-        *out << "Family: "<< curNote.family <<" Number: " << curNote.ph_number <<" Address: " << curNote.address;
+        *out << "Family: "<< curNote.family <<" Number: " << curNote.ph_number <<" Address: " << curNote.address << "\n";
     }
     QThread::currentThread()->msleep(PT);
 }
 
+void ThreadPetriInit(){
+    //Создаем потоки
+    for(int i=0;i<M;i++)
+    {
+      PetriThread *thr = new PetriThread(algorithm,i);
+      thr->start();
+      vecThreads.push_back(thr);
+    }
+
+    CreatePetri(PetriThreadArr,M, queue);
+
+}
 void ThreadArrInit(){
 
     //Создаем потоки
     for(int i=0;i<M;i++)
     {
-      MyThread *thr = new MyThread(algorithm,i);
+      SimpleThread *thr = new SimpleThread(algorithm,i);
       thr->start();
       vecThreads.push_back(thr);
     }
@@ -268,8 +281,13 @@ int main(int argc, char** argv)
         runtime.start();
 
         switch(PA){
-            case ThreadArr:
-               ThreadArrInit();
+        case ThreadArr:
+            *out << " Method: Simple Array of Threads - System Semaphore\n";
+            ThreadArrInit();
+            break;
+        case PetriThreadArr:
+             *out << " Method: Simple Array of Threads - Custom Petri Net Modeling Semaphore\n";
+            ThreadPetriInit();
             break;
         }
 

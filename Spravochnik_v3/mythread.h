@@ -10,12 +10,12 @@ QWaitCondition synchronize;
 extern QSemaphore semaphore_sync;
 extern int curThreadCount;
 
-class MyThread : public QThread
+class SimpleThread : public QThread
 {
     void (*func)(int i,Note curNote);
 public:
     int id;
-    MyThread(void (*fptr)(int i,Note curNote),int detid):func(fptr),id(detid){}
+    SimpleThread(void (*fptr)(int i,Note curNote),int detid):func(fptr),id(detid){}
     void run(){
         if(func){
             semaphore_sync.acquire();
@@ -41,5 +41,35 @@ public:
         }
     }
 };
+//поток для второй части работы
+class PetriThread : public QThread
+{
+    void (*func)(int i,Note curNote);
+public:
+    int id;
+    PetriThread(void (*fptr)(int i,Note curNote),int detid):func(fptr),id(detid){}
+    void run(){
+        if(func){
+            Note curNote;
 
+            while(!queue.isEmpty()){
+                syncmutex.lock();
+                synchronize.wait(&syncmutex);
+                curThreadCount++;
+                syncmutex.unlock();
+
+                if(!queue.isEmpty()){
+                    curNote = queue.dequeue();
+                }
+
+                //запуск функции, привязанной к потоку
+                func(id,curNote);
+
+                syncmutex.lock();
+                curThreadCount--;
+                syncmutex.unlock();
+            }
+        }
+    }
+};
 #endif // MYTHREAD_H
