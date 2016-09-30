@@ -5,6 +5,7 @@
 #include <QTime>
 #include <QStringList>
 #include <QQueue>
+#include <QThreadPool>
 
 #include "mythread.h"
 #include "mypetri.h"
@@ -43,112 +44,7 @@ int N(0),M(0),PT(0),PA(1);
 int curThreadCount = 0;
 //контейнер дл€ хранени€ массива потоков
 QVector<QThread*> vecThreads;
-/*
-//дл€ блокировки одновременного доступа к крит. секции
-QMutex PetriJump;
-int countThreadOnCycle = 0;
 
-*/
-
-/*
-//матрица входов/выходов сети ѕетри
-int pnodes[2] =
-{
-  1,0
-};
-
-int petry_out[2][2] =
-{
-  { 1,0 },
-  { 0,1 }
-};
-
-int petry_in[2][2] =
-{
-  { 0,1 },
-  { 1,0 }
-};
-
-//переход в сети ѕетри (аналог семафора в данной работе)
-void move_petry( int t )
-{
-    bool fl = false;
-    int i;
-
-    while (!fl)
-    {
-
-        fl = true;
-        for( i = 0; i < 2; i++ )
-        {
-            if (pnodes[i] < petry_in[t][i])
-            {fl = false;break;}
-        }
-
-        if (fl)
-        {
-            PetriJump.lock();
-            // ƒвижение можно сделать
-            for( i = 0; i < 2; i++ )
-            {
-                pnodes[i] -= petry_in[t][i];
-                pnodes[i] += petry_out[t][i];
-            }
-
-//#ifdef QT_DEBUG
-            for( i = 0; i < 2; i++ )
-            {
-                //qDebug() << pnodes[i] << ' ';
-            }
-//#endif
-            PetriJump.unlock();
-        }
-
-        //if (!fl) QThread::currentThread()->msleep(100);
-    }
-}
-*/
-/*
-void SJF_n(int i)
-{
-    QVector<TDetail*>* debug = &sortVecDetails;
-    int* temp = &countThreadOnCycle;
-
-    while(::count>0 && (vecDetails.at(i)->state != 2))//пока есть детали
-    {
-        //синхронизаци€ в начале кванта
-        semaphore_sync.acquire();
-        syncmutex.lock();
-        synchronize.wait(&syncmutex);
-        curThreadCount++;
-        countThreadOnCycle++;
-        syncmutex.unlock();
-        semaphore_sync.release();
-
-
-        //пока не подойдет очередь согласно SJF дл€ данного потока - ждем
-        while(sortVecDetails.back()->id!=i);
-
-        if(!sortVecDetails.empty()){
-            // блокировка сетью ѕетри (вз€ть фишку)
-            move_petry(1);
-            //извлекаем детали в пор€дке очереди
-            sortVecDetails.pop_back();
-            // ќсновной алгоритм обработки детали
-            work(i,MaxT);
-            //отдать фишку
-            move_petry(0);
-            //»митируем длительность кванта
-            if(vecDetails.at(i)->state != 2) QThread::currentThread()->msleep(MaxT);
-
-            //считаем, что работа потока завершена на данном кванте, уменьшаем количество запущенных потоков
-            syncmutex.lock();
-            curThreadCount--;
-            syncmutex.unlock();
-        }
-    }    
-}
-*/
 
 //„тение из файла
 void rfile(const QString& name)
@@ -174,37 +70,7 @@ void rfile(const QString& name)
     qDebug() << "*******************Finish read input file********************************";
 #endif
 }
-/*
-//¬ывод результатов в файл
-void print(QTextStream* out)
-{
-    //syncmutex.lock();
 
-    *out << qSetFieldWidth(4) << kvant++ << "- ";
-
-    for(int i = 0; i < vecDetails.size(); i++ )
-    {
-        if (vecDetails.at(i)->state==0)
-            *out << "   w";
-        else if (vecDetails.at(i)->state==2)
-            *out << "    ";
-        else
-        {
-            int cur_mach = vecDetails.at(i)->cur_mach;
-            // вывод станка и оставшегос€ времени
-            *out << qSetFieldWidth(4) << QString::number(vecDetails.at(i)->curtime) + Ch(vecDetails.at(i)->stanok_i[cur_mach]-1);
-        }
-    }
-
-    *out << " # " ;
-    for(int i = 0; i < vecMachines.size(); i++ )
-        *out << " " << vecMachines[i]->Details.size();
-
-    *out << " # " << ::count << endl;
-
-    //syncmutex.unlock();
-}
-*/
 //функци€ основной работы дл€ потока
 void work(int thr_id,Note curNote)
 {
@@ -227,6 +93,11 @@ void ThreadPetriInit(){
     CreatePetri(PetriThreadArr,M, queue);
 
 }
+void PetriThreadPoolInit()
+{
+    CreatePetri(PetriThreadPool,M, queue);
+    return;
+}
 void ThreadArrInit(){
 
     //—оздаем потоки
@@ -245,6 +116,20 @@ void ThreadArrInit(){
         QThread::currentThread()->msleep(0);
     }
     //сюда попадаем, когда работа закончена
+    return;
+}
+void SystemThreadPoolInit()
+{
+    QThreadPool::globalInstance()->setMaxThreadCount(M);
+    Note curNote;
+    int curIndex(0);
+
+    while(!queue.isEmpty()){
+        curNote = queue.dequeue();
+        WorkTask* curtask = new WorkTask(algorithm,curNote,curIndex++);
+        QThreadPool::globalInstance()->start(curtask);
+    }
+    QThreadPool::globalInstance()->waitForDone();
     return;
 }
 
@@ -289,59 +174,19 @@ int main(int argc, char** argv)
              *out << " Method: Simple Array of Threads - Custom Petri Net Modeling Semaphore\n";
             ThreadPetriInit();
             break;
+        case SystemThreadPool:
+             *out << " Method: System ThreadPool \n";
+            SystemThreadPoolInit();
+            break;
+        case PetriThreadPool:
+             *out << " Method: Petri ThreadPool \n";
+            PetriThreadPoolInit();
+            break;
         }
 
         *out << "Time elapsed: " << runtime.elapsed();
         qDebug() << "Time elapsed: " << runtime.elapsed();
-        /*
 
-
-  while (::count>0)
-  {
-      int deadlock;
-      for(int i=0;i<vecDetails.size();i++){
-        if(vecDetails.at(i)->state!=2) sortVecDetails.push_back(vecDetails.at(i)); //вектор дл€ очереди деталей
-      }
-      int sizeDet = sortVecDetails.size();
-
-      if(algorithm==SJF_n){
-        //сортируем по убыванию длительности CPU_burst
-        qSort( sortVecDetails.begin(), sortVecDetails.end(),moreCPU_BurstThen);
-      } else if (algorithm==SJF_p) {
-        qSort( sortVecDetails.begin(), sortVecDetails.end(),morePriorThen);
-      } else throw Error("Algorithm sorting is undefined for current method PA");
-
-      //провер€ем готовность станков
-      for(int i=0;i<vecMachines.size();i++)
-      {
-          vecMachines.at(i)->ready |= vecMachines.at(i)->readyNextCycle;
-          vecMachines.at(i)->readyNextCycle = 0;
-      }
-
-      //будим потоки
-
-      while(semaphore_sync.available()>(vecDetails.size()-sizeDet));
-      synchronize.wakeAll();
-
-      //пока количество потоков не стало максимальным
-      while(countThreadOnCycle!=sizeDet){
-          QThread::currentThread()->msleep(0);
-      }
-      deadlock = 0;
-      //пока потоки не завершились все
-      while(curThreadCount>0) {
-          QThread::currentThread()->msleep(0);
-      }
-
-
-      //вывод на экран
-      print(out);
-
-      countThreadOnCycle = 0;
-  }
-
-  *out << "Finish!";
-    */
   }
   catch(Error err){
       qDebug() << "Error: "<< err.descr;

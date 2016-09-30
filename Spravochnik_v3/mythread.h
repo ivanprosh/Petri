@@ -2,6 +2,7 @@
 #define MYTHREAD_H
 #include <QThread>
 #include <QWaitCondition>
+#include <QRunnable>
 #include "note.h"
 
 QMutex syncmutex;
@@ -72,4 +73,21 @@ public:
         }
     }
 };
+//класс задачи потока из пула для третьей части работы
+class WorkTask : public QRunnable
+{
+    Note RunNote;
+    int id;
+    void (*func)(int i,Note curNote);
+public:
+    WorkTask(void (*fptr)(int i,Note _Note),Note cNote, int curIndex ):func(fptr),RunNote(cNote),id(curIndex){}
+    void run()
+    {
+        if(func){
+            //запуск функции, привязанной к потоку
+            func(id,RunNote);
+        }
+    }
+};
+
 #endif // MYTHREAD_H
