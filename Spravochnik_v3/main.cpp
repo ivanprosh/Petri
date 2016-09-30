@@ -5,6 +5,7 @@
 #include <QTime>
 #include <QStringList>
 #include <QQueue>
+#include <QThreadPool>
 
 #include "mythread.h"
 #include "mypetri.h"
@@ -247,6 +248,24 @@ void ThreadArrInit(){
     //сюда попадаем, когда работа закончена
     return;
 }
+void SystemThreadPoolInit()
+{
+    //WorkTask curtask(algorithm);
+    //QThreadPool pool;
+
+    QThreadPool::globalInstance()->setMaxThreadCount(M);
+
+    Note curNote;
+
+    int curIndex(0);
+    while(!queue.isEmpty()){
+        curNote = queue.dequeue();
+        WorkTask* curtask = new WorkTask(algorithm,curNote,curIndex++);
+        QThreadPool::globalInstance()->start(curtask);
+    }
+
+    return;
+}
 
 int main(int argc, char** argv)
 {
@@ -288,6 +307,10 @@ int main(int argc, char** argv)
         case PetriThreadArr:
              *out << " Method: Simple Array of Threads - Custom Petri Net Modeling Semaphore\n";
             ThreadPetriInit();
+            break;
+        case SystemThreadPool:
+             *out << " Method: System ThreadPool \n";
+            SystemThreadPoolInit();
             break;
         }
 
